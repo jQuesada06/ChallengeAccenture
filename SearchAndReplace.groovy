@@ -5,74 +5,46 @@ import java.nio.file.StandardCopyOption
 import java.text.SimpleDateFormat
 import java.util.Date
 
+/**
+ * Description of SearchAndReplace.
+ *
+ * The SearchAndReplace class performs the following functions:
+ * - Searches for a given pattern in text files in a directory and the subdirectories present and modifies it to another given pattern.
+ * - Backs up files before modifying them.
+ * - Generate a txt file with the log of the modified files and in which line they were modified.
+ *
+ * The parameters are <directory> <text to search> <replacement text> [logging file].
+ * The [log file] parameter is optional, if you want to save a log in a txt file.
+ * Example of an execution line:
+ * groovy SearchAndReplace.groovy C:\Users\josuc\Desktop\PruebaTecnicaAccenture "Hola mundo" "Hola mundo desde nuevo patron" registro.txt
+ * 
+ * @author Josue
+ */
 class SearchAndReplace {
     static void main(String[] args) {
-        //Validación de que en el comando vengan los parametros que necesita el algoritmo para ejecutarse
-        //Los parametros son <directorio> <texto a buscar> <texto de reemplazo> [archivo de registro] 
-        //El parametro [archivo de registro] es opcional, si desea guardar un registro en un txt
+        // Validation that the command contains the parameters required by the algorithm to be executed.
         if (args.length < 3 || args.length > 4) {
-            println("Uso: groovy SearchAndReplace.groovy <directorio> <texto a buscar> <texto de reemplazo> [archivo de registro *Opcional]")
+            println("Uso: groovy SearchAndReplace.groovy <directory> <text to search> <replacement text> [logging file]")
             System.exit(1)
         }
 
-        //Se deaclaran las variables tomando los argumentos.
+        // The variables are declared by taking the arguments.
         def directory = args[0] 
         def serchPattern = args[1]
         def raplacePattern = args[2]
         def loggingFile = args.length == 4 ? args[3] : null
-        def files = searchFiles(directory) //Se define la lista con los archivos que existen
-        def registry = []
+        def files = searchFiles(directory) // The list of existing files is defined
+        def fileNamesToLog = []
 
-
-        def start = System.currentTimeMillis()
-        // Divide la lista de archivos en dos sublistas en caso de que sea mayor o igual a 20
-        //Para trabajar el proceso en 2 hilos
-        if (files.size() >= 20){
-            def half = files.size() / 2
-            def firstHalf = files[0..half - 1]
-            def secondHalf = files[half..-1]
-
-            def thread1 = Thread.start {
-                firstHalf.each { file ->
-                    replaceInFile(file, serchPattern, raplacePattern, loggingFile, registry)
-                }
-            }
-
-            def thread2 = Thread.start {
-                secondHalf.each { file ->
-                    replaceInFile(file, serchPattern, raplacePattern, loggingFile, registry)
-                }
-            }
-
-            // Espera a que ambos hilos terminen
-            thread1.join()
-            thread2.join()
-
-        } else { //En caso de que los archivos sean menos de 20 solo se hace un proceso
-            files.each { file ->
-                replaceInFile(file, serchPattern, raplacePattern, loggingFile, registry)
-            }
-        }
-
-        if (registry.size() > 0) { //Impresion de los archivos modificados
-            println("${registry.size()} archivos modificados con exito, puedes ver el registro completo en ${loggingFile}")
-        } else { 
-            println("No se encontraron coincidencias en los archivos.")
-        }
-
-        if (loggingFile) { //Genera el registro en caso de que lo haya indicado en el comando
-            generateRegistry(loggingFile, registry)
-        }
-
-        def end = System.currentTimeMillis()
-        def timeElapsed = end - start
-        println("Duración modificando los archivos: ${timeElapsed} milisegundos") //Impresion del tiempo de ejecucion
+        // Execute the executeSearchAndReplace function.
+        executeSearchAndReplace(directory, serchPattern, raplacePattern, loggingFile, files, fileNamesToLog)
+        
     }
 
     /*
-    * Este metodo busca todos los archivos que hay en el directorio en los subdirectorios
-    * @param directory Directorio en el que se van a buscar los archivos
-    * @return Lista de todos los archivos que existen
+    * This method searches for all the files in the directory in the subdirectories
+    * @param directory Directory in which the files are to be found
+    * @return List of all existing files
     */
     static List<Path> searchFiles(String directory) {
         def files = []
@@ -86,15 +58,14 @@ class SearchAndReplace {
     }
 
     /*
-    * Este metodo reemplaza los patrones encontrados en un archivo y hace un registro de los modificados
-    * @param file Archivo donde se va a remplazar el patron
-    * @param serchPattern Patron a remplazar
-    * @param raplacePattern Patron suplente
-    * @param loggingFile Archivo de registro 
-    * @param registry Registro de los archivos modificados
-    * @return True o False
+    * This method replaces the patterns found in a file and makes a record of the modified ones.
+    * @param file File where the pattern is to be replaced
+    * @param serchPattern Pattern to be replaced
+    * @param raplacePattern Substitute pattern
+    * @param loggingFile Log file
+    * @param fileNamesToLog Logging of modified files
     */
-    static boolean replaceInFile(Path file, String serchPattern, String raplacePattern, String loggingFile, List<String> registry) {
+    static void replaceInFile(Path file, String serchPattern, String raplacePattern, String loggingFile, List<String> fileNamesToLog) {
         def content = file.toFile().text
         def lines = content.readLines()
         def modifiedLines = []
@@ -102,23 +73,20 @@ class SearchAndReplace {
         for (int i = 0; i < lines.size(); i++) {
             if (lines[i].contains(serchPattern)) {
                 lines[i] = lines[i].replaceAll(serchPattern, raplacePattern)
-                modifiedLines << (i + 1)  // Almacena el número de línea modificado (empezando desde 1)
+                modifiedLines << (i + 1)  // Stores the modified line number (starting from 1)
             }
         }
 
         if (!modifiedLines.isEmpty()) {
-            registry.add("Se modificó: ${file.getFileName()}, Líneas modificadas: ${modifiedLines.join(', ')}")
+            fileNamesToLog.add("Modified: ${file.getFileName()}, Modified lines: ${modifiedLines.join(', ')}")
             backupFile(file)
             file.toFile().text = lines.join('\n')
-            return true
         }
-
-        return false
     }
 
     /*
-    * Este metodo hace un backup de un archivo
-    * @param file Archivo al cual se le va a hacer el backup
+    * This method makes a backup of a file
+    * @param file File to be backed up
     */
     static void backupFile(Path file) {
         def timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date())
@@ -127,15 +95,71 @@ class SearchAndReplace {
     }
 
     /*
-    * Este metodo genera un archivo txt con un registro de los archivos modificados
-    * @param loggingFile Nombre del archivo que se quiere de registro
-    * @param registry Lista de todos los archivos modificados
+    * This method generates a txt file with a log of the modified files.
+    * @param loggingFile Name of the file to be registered
+    * @param fileNamesToLog List of all modified files
     */
-    static void generateRegistry(String loggingFile, List<String> registry) {
+    static void log(String loggingFile, List<String> fileNamesToLog) {
         new File(loggingFile).withWriter { writer ->
-            registry.each { line ->
+            fileNamesToLog.each { line ->
                 writer.println(line)
             }
         }
+    }
+ 
+    /*
+    * This method executes the program to search and replace the patterns.
+    * @param directory Directory where you want to find the files
+    * @param serchPattern Pattern to be replaced
+    * @param raplacePattern Substitute pattern
+    * @param loggingFile Log file
+    * @param files List of all files in the directory
+    * @param fileNamesToLog List of all modified files
+    */
+    
+    static void executeSearchAndReplace(String directory, String serchPattern, String raplacePattern, String loggingFile, List<String> files, List<String> fileNamesToLog){
+        def start = System.currentTimeMillis()
+        // Splits the list of files into two sublists if greater than or equal to 20
+        // To work the process in 2 threads
+        if (files.size() >= 20){
+            def half = files.size() / 2
+            def firstHalf = files[0..half - 1]
+            def secondHalf = files[half..-1]
+
+            def thread1 = Thread.start {
+                firstHalf.each { file ->
+                    replaceInFile(file, serchPattern, raplacePattern, loggingFile, fileNamesToLog)
+                }
+            }
+
+            def thread2 = Thread.start {
+                secondHalf.each { file ->
+                    replaceInFile(file, serchPattern, raplacePattern, loggingFile, fileNamesToLog)
+                }
+            }
+
+            // Wait for both threads to finish
+            thread1.join()
+            thread2.join()
+
+        } else { // In case the number of files is less than 20, only one process is carried out
+            files.each { file ->
+                replaceInFile(file, serchPattern, raplacePattern, loggingFile, fileNamesToLog)
+            }
+        }
+
+        if (fileNamesToLog.size() > 0) { // Printout of modified files
+            println("${fileNamesToLog.size()} successfully modified files, you can see the complete log at ${loggingFile}")
+        } else { 
+            println("No matches found in the archives.")
+        }
+
+        if (loggingFile) { // Generates the record in case you have specified it in the command
+            log(loggingFile, fileNamesToLog)
+        }
+
+        def end = System.currentTimeMillis()
+        def timeElapsed = end - start
+        println("Duration modifying the files: ${timeElapsed} milliseconds") // Printout of run time
     }
 }
