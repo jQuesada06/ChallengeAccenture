@@ -116,7 +116,6 @@ class SearchAndReplace {
     * @param files List of all files in the directory
     * @param fileNamesToLog List of all modified files
     */
-    
     static void executeSearchAndReplace(String directory, String serchPattern, String raplacePattern, String loggingFile, List<String> files, List<String> fileNamesToLog){
         def start = System.currentTimeMillis()
         // Splits the list of files into two sublists if greater than or equal to 20
