@@ -1,0 +1,10 @@
+The SearchAndReplace class performs the following functions:
+- Searches for a given pattern in text files in a directory and the subdirectories present and modifies it to another given pattern.
+- Backs up files before modifying them.
+- Generate a txt file with the log of the modified files and in which line they were modified.
+
+The parameters are <directory> <text to search> <replacement text> [logging file].
+The [log file] parameter is optional, if you want to save a log in a txt file.
+
+Example of an execution line:
+groovy SearchAndReplace.groovy C:\Users\josuc\Desktop\TechnicalTestingAccenture "Hello World" "Hello world from new pattern" log.txt
